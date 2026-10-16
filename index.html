@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b18">
+  <meta name="description" content="Dodge the debris, collect the light, and see how far you can drift.">
+  <title>Neon Drift</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #080b18;
+      color: #f4f4ff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #9ba4c6;
+      --cyan: #5cf4ff;
+      --pink: #ff5bd6;
+      --panel: rgba(17, 23, 48, .83);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 50% 88%, rgba(37, 35, 100, .5), transparent 55%),
+        radial-gradient(ellipse at 10% 8%, rgba(25, 68, 102, .3), transparent 38%),
+        #080b18;
+    }
+
+    button { font: inherit; }
+    .shell {
+      width: min(1180px, 100%);
+      height: 100dvh;
+      min-height: 580px;
+      margin: auto;
+      padding: 22px clamp(16px, 4vw, 48px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .topbar, .brand, .stats, .stat, .actions, .profile, .profile-copy, .game-footer {
+      display: flex;
+      align-items: center;
+    }
+    .topbar { justify-content: space-between; gap: 16px; min-height: 58px; }
+    .brand { gap: 12px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(92, 244, 255, .5);
+      border-radius: 13px;
+      color: var(--cyan);
+      font-size: 22px;
+      background: linear-gradient(145deg, rgba(92, 244, 255, .15), rgba(255, 91, 214, .12));
+      box-shadow: 0 0 26px rgba(92, 244, 255, .13);
+    }
+    h1 { margin: 0; font-size: 19px; line-height: 1.05; letter-spacing: .14em; }
+    .eyebrow { margin: 5px 0 0; color: var(--muted); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; }
+
+    .profile {
+      gap: 10px;
+      min-width: 0;
+      padding: 6px 13px 6px 6px;
+      border: 1px solid rgba(174, 190, 255, .14);
+      border-radius: 999px;
+      background: rgba(17, 23, 48, .78);
+    }
+    .profile img {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: linear-gradient(135deg, #5cf4ff, #c47bff 55%, #ffb46b);
+    }
+    .profile-copy { min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
+    .profile-copy strong { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .profile-copy span { color: var(--muted); font-size: 10px; }
+    .signin {
+      margin-left: 4px;
+      border: 0;
+      padding: 7px 11px;
+      border-radius: 999px;
+      color: #071017;
+      background: var(--cyan);
+      font-size: 11px;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    [hidden] { display: none !important; }
+
+    .stats { justify-content: center; gap: clamp(12px, 4vw, 46px); }
+    .stat { gap: 9px; min-width: 92px; }
+    .stat-icon { color: var(--cyan); font-size: 18px; }
+    .stat-label { color: var(--muted); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; }
+    .stat-value { margin-top: 2px; font-size: 19px; font-variant-numeric: tabular-nums; font-weight: 800; }
+
+    .arena {
+      position: relative;
+      flex: 1;
+      min-height: 300px;
+      overflow: hidden;
+      border: 1px solid rgba(125, 153, 255, .22);
+      border-radius: 24px;
+      isolation: isolate;
+      background: #0a1025;
+      box-shadow: 0 20px 80px rgba(0, 0, 0, .36), inset 0 0 60px rgba(56, 69, 163, .13);
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .arena::after {
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      pointer-events: none;
+      content: "";
+      background: linear-gradient(180deg, rgba(8, 11, 24, .08), transparent 40%, rgba(8, 11, 24, .2));
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      padding: 24px;
+      text-align: center;
+      background: radial-gradient(ellipse, rgba(9, 13, 31, .76), rgba(9, 13, 31, .15) 72%);
+    }
+    .overlay-kicker { color: var(--cyan); font-size: 10px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; }
+    .overlay h2 { margin: 10px 0 8px; font-size: clamp(32px, 6vw, 58px); line-height: .98; letter-spacing: -.045em; }
+    .overlay p { max-width: 370px; margin: 0; color: #bbc3e1; font-size: 13px; line-height: 1.6; }
+    .primary-button {
+      margin-top: 24px;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 24px;
+      color: #071017;
+      background: linear-gradient(100deg, var(--cyan), #b6ffdf);
+      box-shadow: 0 0 32px rgba(92, 244, 255, .22);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .primary-button:hover { transform: translateY(-2px); box-shadow: 0 0 42px rgba(92, 244, 255, .38); }
+    .controls-hint { margin-top: 15px !important; color: #8992b3 !important; font-size: 10px !important; }
+    .game-footer { justify-content: space-between; gap: 16px; min-height: 32px; color: var(--muted); font-size: 10px; }
+    .actions { gap: 14px; }
+    .text-button { border: 0; padding: 5px 0; color: #bbc3e1; background: none; cursor: pointer; font-size: 10px; }
+    .text-button:hover { color: var(--cyan); }
+    .message { min-height: 14px; color: #9ba4c6; text-align: right; }
+    .mobile-controls { display: none; }
+
+    @media (max-width: 620px) {
+      .shell { min-height: 520px; padding: 14px 12px; gap: 11px; }
+      .topbar { min-height: 50px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 11px; }
+      h1 { font-size: 15px; }
+      .eyebrow { font-size: 8px; }
+      .profile { gap: 7px; padding-right: 8px; }
+      .profile img { width: 32px; height: 32px; }
+      .profile-copy strong { max-width: 72px; font-size: 10px; }
+      .profile-copy span { font-size: 9px; }
+      .signin { padding: 6px 8px; font-size: 10px; }
+      .stats { justify-content: space-around; gap: 6px; }
+      .stat { min-width: 76px; gap: 6px; }
+      .stat-icon { font-size: 15px; }
+      .stat-label { font-size: 8px; }
+      .stat-value { font-size: 16px; }
+      .arena { border-radius: 18px; }
+      .game-footer { font-size: 9px; }
+      .message { max-width: 53%; }
+      .mobile-controls { display: flex; gap: 8px; }
+      .mobile-controls button {
+        width: 44px;
+        height: 36px;
+        border: 1px solid rgba(92, 244, 255, .28);
+        border-radius: 11px;
+        color: var(--cyan);
+        background: rgba(17, 23, 48, .8);
+        font-size: 16px;
+        font-weight: 800;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <h1>NEON DRIFT</h1>
+          <p class="eyebrow">A pocket-sized night run</p>
+        </div>
+      </div>
+      <section class="profile" id="player-card" aria-label="start.ng player" hidden>
+        <img id="player-face" alt="">
+        <div class="profile-copy">
+          <strong id="player-name">Guest</strong>
+          <span id="player-account">Not signed in</span>
+        </div>
+        <a class="signin" id="player-sign-in" href="#" hidden>Sign in</a>
+      </section>
+    </header>
+
+    <section class="stats" aria-label="Run statistics">
+      <div class="stat"><span class="stat-icon" aria-hidden="true">↗</span><div><div class="stat-label">Distance</div><div class="stat-value" id="distance">0</div></div></div>
+      <div class="stat"><span class="stat-icon" aria-hidden="true">✧</span><div><div class="stat-label">Sparks</div><div class="stat-value" id="sparks">0</div></div></div>
+      <div class="stat"><span class="stat-icon" aria-hidden="true">◈</span><div><div class="stat-label">Best run</div><div class="stat-value" id="best">0</div></div></div>
+    </section>
+
+    <section class="arena" aria-label="Neon Drift game">
+      <canvas id="game" aria-label="Three-lane runner. Move between lanes to dodge debris and collect sparks."></canvas>
+      <div class="overlay" id="overlay">
+        <span class="overlay-kicker" id="overlay-kicker">Ready when you are</span>
+        <h2 id="overlay-title">Catch the<br>night current.</h2>
+        <p id="overlay-copy">Slip between the lanes, dodge the debris, and gather sparks before the city fades.</p>
+        <button class="primary-button" id="play-button" type="button">Start your run</button>
+        <p class="controls-hint">← → or A / D to steer · swipe on touch</p>
+      </div>
+    </section>
+
+    <footer class="game-footer">
+      <div class="actions">
+        <span>PERSONAL BEST <strong id="best-footer">0</strong></span>
+        <button class="text-button" id="board-button" type="button">Leaderboard</button>
+        <span class="mobile-controls" aria-label="Touch controls">
+          <button type="button" id="left-button" aria-label="Move left">←</button>
+          <button type="button" id="right-button" aria-label="Move right">→</button>
+        </span>
+      </div>
+      <span class="message" id="message" role="status" aria-live="polite">Loading player...</span>
+    </footer>
+  </main>
+  <script>
+    const START_NG = 'https://start.ng';
+    const GAME_NAME = 'neon-drift-arcade';
+    const canvas = document.querySelector('#game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.querySelector('#overlay');
+    const playButton = document.querySelector('#play-button');
+    const message = document.querySelector('#message');
+    const distanceOutput = document.querySelector('#distance');
+    const sparksOutput = document.querySelector('#sparks');
+    const bestOutput = document.querySelector('#best');
+    const bestFooter = document.querySelector('#best-footer');
+    const laneColors = ['#5cf4ff', '#c47bff', '#ff75d9'];
+    const storedBest = Number(localStorage.getItem('neon-drift-best')) || 0;
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let lane = 1;
+    let playerLane = 1;
+    let objects = [];
+    let particles = [];
+    let stars = [];
+    let elapsed = 0;
+    let distance = 0;
+    let sparks = 0;
+    let spawnTimer = 0;
+    let worldTime = 0;
+    let lastFrame = 0;
+    let state = 'ready';
+    let startNgFrame;
+
+    bestOutput.textContent = storedBest.toLocaleString();
+    bestFooter.textContent = storedBest.toLocaleString();
+
+    function connectFrame() {
+      if (!startNgFrame) {
+        startNgFrame = new Promise((resolve, reject) => {
+          const frame = document.createElement('iframe');
+          frame.src = `${START_NG}/connect`;
+          frame.hidden = true;
+          frame.onload = () => resolve(frame);
+          frame.onerror = () => reject(new Error('Could not load the start.ng connection.'));
+          document.body.append(frame);
+        });
+      }
+      return startNgFrame;
+    }
+
+    async function askStartNg(request, replyType, timeoutMs = 5000) {
+      const frame = await connectFrame();
+      return new Promise((resolve) => {
+        const requestId = Math.random().toString(36).slice(2);
+        const finish = (reply) => {
+          clearTimeout(timer);
+          removeEventListener('message', onMessage);
+          resolve(reply);
+        };
+        const timer = setTimeout(() => finish(null), timeoutMs);
+        function onMessage(event) {
+          if (event.origin !== START_NG || event.source !== frame.contentWindow) return;
+          if (event.data?.type === replyType && event.data.requestId === requestId) finish(event.data);
+        }
+        addEventListener('message', onMessage);
+        frame.contentWindow.postMessage({ ...request, requestId }, START_NG);
+      });
+    }
+
+    function setPlayer(reply) {
+      const player = reply?.user ?? reply?.guest;
+      if (!player) {
+        message.textContent = 'Player profile unavailable. The run is still ready.';
+        return;
+      }
+      document.querySelector('#player-face').src = player.face || '';
+      document.querySelector('#player-name').textContent = player.name || 'Guest';
+      document.querySelector('#player-account').textContent = reply.user?.account ? `@${reply.user.account}` : 'Guest pilot';
+      document.querySelector('#player-sign-in').hidden = !!reply.user;
+      document.querySelector('#player-sign-in').href = `${START_NG}/?return_to=${encodeURIComponent(location.origin + location.pathname)}`;
+      document.querySelector('#player-card').hidden = false;
+      message.textContent = reply.user ? 'Welcome back, pilot.' : 'Playing as a guest. Sign in to save a score.';
+    }
+
+    async function refreshPlayer() {
+      try {
+        const reply = await askStartNg({ type: 'startng:whoami' }, 'startng:user');
+        if (reply) setPlayer(reply);
+        else message.textContent = 'start.ng profile is not available here. You can still play.';
+      } catch (error) {
+        message.textContent = 'start.ng profile could not load. You can still play.';
+        console.error(error);
+      }
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      stars = Array.from({ length: Math.floor(width * height / 8500) }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 1.8 + .3,
+        phase: Math.random() * Math.PI * 2
+      }));
+    }
+
+    function laneX(index, y) {
+      const perspective = Math.max(.36, Math.min(1, (y / height) * .75 + .35));
+      const roadWidth = width * .72 * perspective;
+      return width / 2 + (index - 1) * roadWidth / 3;
+    }
+
+    function roundedRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    }
+
+    function drawRoad(delta) {
+      const horizon = height * .12;
+      const base = height * 1.08;
+      const topWidth = width * .15;
+      const bottomWidth = width * .91;
+      const road = ctx.createLinearGradient(0, horizon, 0, height);
+      road.addColorStop(0, 'rgba(26, 39, 82, .16)');
+      road.addColorStop(.52, 'rgba(23, 31, 67, .38)');
+      road.addColorStop(1, 'rgba(17, 23, 54, .82)');
+      ctx.fillStyle = road;
+      ctx.beginPath();
+      ctx.moveTo(width / 2 - topWidth / 2, horizon);
+      ctx.lineTo(width / 2 + topWidth / 2, horizon);
+      ctx.lineTo(width / 2 + bottomWidth / 2, base);
+      ctx.lineTo(width / 2 - bottomWidth / 2, base);
+      ctx.closePath();
+      ctx.fill();
+
+      const edgeGlow = ctx.createLinearGradient(0, horizon, 0, height);
+      edgeGlow.addColorStop(0, 'rgba(92, 244, 255, .2)');
+      edgeGlow.addColorStop(1, 'rgba(92, 244, 255, .8)');
+      ctx.strokeStyle = edgeGlow;
+      ctx.lineWidth = 1.5;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(width / 2 + side * topWidth / 2, horizon);
+        ctx.lineTo(width / 2 + side * bottomWidth / 2, base);
+        ctx.stroke();
+      }
+      for (const separator of [-1, 1]) {
+        const x1 = width / 2 + separator * topWidth / 6;
+        const x2 = width / 2 + separator * bottomWidth / 6;
+        ctx.beginPath();
+        ctx.moveTo(x1, horizon);
+        ctx.lineTo(x2, base);
+        ctx.strokeStyle = 'rgba(125, 153, 255, .22)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      const scroll = (worldTime * (state === 'playing' ? 1 : .2)) % 1;
+      for (let i = 0; i < 13; i++) {
+        const t = (i / 13 + scroll) % 1;
+        const y = horizon + (base - horizon) * t * t;
+        const half = topWidth / 2 + (bottomWidth / 2 - topWidth / 2) * t * t;
+        ctx.fillStyle = `rgba(92, 244, 255, ${.03 + t * .17})`;
+        ctx.fillRect(width / 2 - half, y, half * 2, Math.max(1, t * 2.5));
+      }
+      for (const star of stars) {
+        const shimmer = .25 + Math.sin(worldTime * 1.5 + star.phase) * .15;
+        ctx.fillStyle = `rgba(205, 225, 255, ${shimmer})`;
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+      }
+    }
+
+    function drawShip() {
+      const x = laneX(playerLane, height * .78);
+      const y = height * .79;
+      const scale = Math.min(width, height) / 520;
+      ctx.save();
+      ctx.translate(x, y + Math.sin(worldTime * 7) * 3);
+      ctx.scale(scale, scale);
+      ctx.shadowBlur = 28;
+      ctx.shadowColor = laneColors[playerLane];
+      ctx.fillStyle = 'rgba(92, 244, 255, .22)';
+      ctx.beginPath();
+      ctx.ellipse(0, 22, 25, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -28);
+      ctx.lineTo(22, 15);
+      ctx.lineTo(7, 10);
+      ctx.lineTo(0, 17);
+      ctx.lineTo(-7, 10);
+      ctx.lineTo(-22, 15);
+      ctx.closePath();
+      const hull = ctx.createLinearGradient(-20, -10, 20, 12);
+      hull.addColorStop(0, '#ffffff');
+      hull.addColorStop(.52, laneColors[playerLane]);
+      hull.addColorStop(1, '#9b79ff');
+      ctx.fillStyle = hull;
+      ctx.fill();
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(0, -5, 4, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawObject(object) {
+      const y = object.y;
+      const x = laneX(object.lane, y);
+      const scale = .35 + (y / height) * .8;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      if (object.type === 'spark') {
+        ctx.rotate(worldTime * 1.8);
+        ctx.shadowColor = '#ffe986';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#ffe986';
+        ctx.beginPath();
+        ctx.moveTo(0, -15);
+        ctx.lineTo(5, -5);
+        ctx.lineTo(15, 0);
+        ctx.lineTo(5, 5);
+        ctx.lineTo(0, 15);
+        ctx.lineTo(-5, 5);
+        ctx.lineTo(-15, 0);
+        ctx.lineTo(-5, -5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff9d6';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.shadowColor = '#ff5bd6';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = '#302344';
+        ctx.strokeStyle = '#ff73cd';
+        ctx.lineWidth = 2;
+        roundedRect(-18, -17, 36, 34, 7);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, .55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-9, -8);
+        ctx.lineTo(5, 8);
+        ctx.moveTo(10, -10);
+        ctx.lineTo(-4, 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const particle of particles) {
+        ctx.globalAlpha = Math.max(0, particle.life);
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function spawnObject() {
+      const objectLane = Math.floor(Math.random() * 3);
+      const addSpark = Math.random() < .42;
+      objects.push({ lane: objectLane, y: height * .12, type: addSpark ? 'spark' : 'debris', hit: false });
+      if (Math.random() < .14) {
+        const nextLane = (objectLane + 1 + Math.floor(Math.random() * 2)) % 3;
+        objects.push({ lane: nextLane, y: height * .12 - 55, type: 'spark', hit: false });
+      }
+    }
+
+    function burst(x, y, color) {
+      for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 35 + Math.random() * 120;
+        particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 1 + Math.random() * 3, life: 1, color });
+      }
+    }
+
+    function endRun() {
+      state = 'over';
+      overlay.hidden = false;
+      const score = Math.floor(distance);
+      const improved = score > storedBest;
+      if (improved) {
+        localStorage.setItem('neon-drift-best', String(score));
+        bestOutput.textContent = score.toLocaleString();
+        bestFooter.textContent = score.toLocaleString();
+      }
+      document.querySelector('#overlay-kicker').textContent = improved ? 'New personal record' : 'Run complete';
+      document.querySelector('#overlay-title').innerHTML = `${score.toLocaleString()}<br><span style="color:var(--cyan)">meters</span>`;
+      document.querySelector('#overlay-copy').textContent = `You gathered ${sparks} ${sparks === 1 ? 'spark' : 'sparks'}. Ready for another run?`;
+      playButton.textContent = 'Run it back';
+      document.querySelector('.controls-hint').textContent = 'Every run is a new chance to go further.';
+      saveRun(score, sparks);
+    }
+
+    async function saveRun(finalDistance, finalSparks) {
+      try {
+        const reply = await askStartNg({ type: 'startng:score', stats: { distance: finalDistance, sparks: finalSparks } }, 'startng:scoreSaved');
+        if (reply?.ok) {
+          const result = reply.result;
+          message.textContent = result?.improved ? `New shared best. Rank #${result.rank}.` : `Run saved. Rank #${result?.rank ?? '?'}.`;
+        } else if (reply?.error) {
+          message.textContent = reply.error;
+        } else {
+          message.textContent = 'Run finished. Sign in at start.ng to save your shared score.';
+        }
+      } catch (error) {
+        message.textContent = 'Could not save this run to start.ng.';
+        console.error(error);
+      }
+    }
+
+    function startRun() {
+      lane = 1;
+      playerLane = 1;
+      objects = [];
+      particles = [];
+      elapsed = 0;
+      distance = 0;
+      sparks = 0;
+      spawnTimer = .8;
+      state = 'playing';
+      overlay.hidden = true;
+      distanceOutput.textContent = '0';
+      sparksOutput.textContent = '0';
+      message.textContent = 'Find your rhythm.';
+    }
+
+    function move(direction) {
+      if (state !== 'playing') return;
+      lane = Math.max(0, Math.min(2, lane + direction));
+      playerLane = lane;
+    }
+
+    async function showLeaderboard() {
+      message.textContent = 'Loading leaderboard...';
+      try {
+        const reply = await askStartNg({ type: 'startng:leaderboard', limit: 10 }, 'startng:leaderboardData');
+        if (!reply?.ok) {
+          message.textContent = 'Leaderboard is not available yet.';
+          return;
+        }
+        if (!reply.entries?.length) {
+          message.textContent = 'No scores yet. Make the first mark!';
+          return;
+        }
+        message.textContent = reply.entries.slice(0, 3).map((entry) => `#${entry.rank} ${entry.name}: ${entry.stats?.distance ?? entry.score ?? 0}m`).join(' · ');
+      } catch (error) {
+        message.textContent = 'Could not load the start.ng leaderboard.';
+        console.error(error);
+      }
+    }
+
+    function frame(timestamp) {
+      const delta = Math.min(.04, (timestamp - (lastFrame || timestamp)) / 1000);
+      lastFrame = timestamp;
+      worldTime += delta;
+      ctx.clearRect(0, 0, width, height);
+      drawRoad(delta);
+
+      if (state === 'playing') {
+        elapsed += delta;
+        distance += delta * (12 + Math.min(13, elapsed * .22));
+        const speed = height * (.43 + Math.min(.62, elapsed * .009));
+        spawnTimer -= delta;
+        if (spawnTimer <= 0) {
+          spawnObject();
+          spawnTimer = Math.max(.43, 1.08 - elapsed * .008) + Math.random() * .34;
+        }
+        for (const object of objects) {
+          object.y += speed * delta;
+          if (!object.hit && object.y > height * .735 && object.y < height * .835 && object.lane === playerLane) {
+            object.hit = true;
+            if (object.type === 'spark') {
+              sparks++;
+              burst(laneX(playerLane, object.y), object.y, '#ffe986');
+            } else {
+              burst(laneX(playerLane, object.y), object.y, '#ff5bd6');
+              endRun();
+              break;
+            }
+          }
+        }
+        objects = objects.filter((object) => object.y < height + 45 && !object.hit);
+        for (const particle of particles) {
+          particle.x += particle.vx * delta;
+          particle.y += particle.vy * delta;
+          particle.life -= delta * 1.8;
+        }
+        particles = particles.filter((particle) => particle.life > 0);
+        distanceOutput.textContent = Math.floor(distance).toLocaleString();
+        sparksOutput.textContent = sparks.toLocaleString();
+      }
+
+      for (const object of objects) drawObject(object);
+      drawParticles();
+      drawShip();
+      requestAnimationFrame(frame);
+    }
+
+    playButton.addEventListener('click', startRun);
+    document.querySelector('#left-button').addEventListener('click', () => move(-1));
+    document.querySelector('#right-button').addEventListener('click', () => move(1));
+    document.querySelector('#board-button').addEventListener('click', showLeaderboard);
+    window.addEventListener('keydown', (event) => {
+      if (['ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') move(-1);
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') move(1);
+      if (event.key === ' ' && state !== 'playing') startRun();
+    });
+    let pointerStart = null;
+    canvas.addEventListener('pointerdown', (event) => { pointerStart = event.clientX; });
+    canvas.addEventListener('pointerup', (event) => {
+      if (pointerStart === null) return;
+      const dx = event.clientX - pointerStart;
+      if (Math.abs(dx) > 24) move(dx < 0 ? -1 : 1);
+      pointerStart = null;
+    });
+    window.addEventListener('resize', resize);
+    window.addEventListener('focus', refreshPlayer);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshPlayer(); });
+
+    resize();
+    requestAnimationFrame(frame);
+    refreshPlayer();
+  </script>
+</body>
+</html>
