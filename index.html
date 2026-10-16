@@ -25,7 +25,8 @@
       min-width: 320px;
       min-height: 100vh;
       margin: 0;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background:
         radial-gradient(ellipse at 50% 88%, rgba(37, 35, 100, .5), transparent 55%),
         radial-gradient(ellipse at 10% 8%, rgba(25, 68, 102, .3), transparent 38%),
@@ -115,6 +116,7 @@
       box-shadow: 0 20px 80px rgba(0, 0, 0, .36), inset 0 0 60px rgba(56, 69, 163, .13);
     }
     canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -4px; }
     .arena::after {
       position: absolute;
       z-index: -1;
@@ -191,6 +193,22 @@
         font-weight: 800;
       }
     }
+    @media (max-height: 500px) {
+      .shell {
+        height: 100dvh;
+        min-height: 0;
+        padding: 8px clamp(16px, 4vw, 48px);
+        gap: 8px;
+      }
+      .topbar { min-height: 42px; }
+      .brand-mark { width: 34px; height: 34px; }
+      .arena { min-height: 0; }
+      .overlay { padding: 10px 16px; }
+      .overlay h2 { margin: 6px 0; font-size: clamp(28px, 8vh, 38px); }
+      .overlay p { font-size: 12px; line-height: 1.4; }
+      .primary-button { margin-top: 12px; padding: 10px 20px; }
+      .controls-hint { margin-top: 8px !important; }
+    }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
     }
@@ -223,7 +241,7 @@
     </section>
 
     <section class="arena" aria-label="Neon Drift game">
-      <canvas id="game" aria-label="Three-lane runner. Move between lanes to dodge debris and collect sparks."></canvas>
+      <canvas id="game" tabindex="0" aria-label="Three-lane runner. Move between lanes to dodge debris and collect sparks."></canvas>
       <div class="overlay" id="overlay">
         <span class="overlay-kicker" id="overlay-kicker">Ready when you are</span>
         <h2 id="overlay-title">Catch the<br>night current.</h2>
@@ -258,7 +276,13 @@
     const bestOutput = document.querySelector('#best');
     const bestFooter = document.querySelector('#best-footer');
     const laneColors = ['#5cf4ff', '#c47bff', '#ff75d9'];
-    const storedBest = Number(localStorage.getItem('neon-drift-best')) || 0;
+    function readStoredBest() {
+      const value = localStorage.getItem('neon-drift-best');
+      if (value === null || value.trim() === '') return 0;
+      const score = Number(value);
+      return Number.isSafeInteger(score) && score >= 0 ? score : 0;
+    }
+    let storedBest = readStoredBest();
     let width = 0;
     let height = 0;
     let pixelRatio = 1;
@@ -536,12 +560,15 @@
       state = 'over';
       overlay.hidden = false;
       const score = Math.floor(distance);
-      const improved = score > storedBest;
+      const validScore = Number.isSafeInteger(score) && score >= 0;
+      const previousBest = Math.max(storedBest, readStoredBest());
+      const improved = validScore && score > previousBest;
+      storedBest = validScore ? Math.max(previousBest, score) : previousBest;
       if (improved) {
         localStorage.setItem('neon-drift-best', String(score));
-        bestOutput.textContent = score.toLocaleString();
-        bestFooter.textContent = score.toLocaleString();
       }
+      bestOutput.textContent = storedBest.toLocaleString();
+      bestFooter.textContent = storedBest.toLocaleString();
       document.querySelector('#overlay-kicker').textContent = improved ? 'New personal record' : 'Run complete';
       document.querySelector('#overlay-title').innerHTML = `${score.toLocaleString()}<br><span style="color:var(--cyan)">meters</span>`;
       document.querySelector('#overlay-copy').textContent = `You gathered ${sparks} ${sparks === 1 ? 'spark' : 'sparks'}. Ready for another run?`;
@@ -578,6 +605,7 @@
       spawnTimer = .8;
       state = 'playing';
       overlay.hidden = true;
+      canvas.focus();
       distanceOutput.textContent = '0';
       sparksOutput.textContent = '0';
       message.textContent = 'Find your rhythm.';
@@ -660,6 +688,7 @@
     document.querySelector('#right-button').addEventListener('click', () => move(1));
     document.querySelector('#board-button').addEventListener('click', showLeaderboard);
     window.addEventListener('keydown', (event) => {
+      if (event.target instanceof Element && event.target.closest('button, a[href], input, select, textarea, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"], [tabindex]:not([tabindex="-1"]):not(canvas)')) return;
       if (['ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
       if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') move(-1);
       if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') move(1);
